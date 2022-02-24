@@ -270,18 +270,33 @@ char** msh_split_line(char* line)
  */
 void msh_loop(void)
 {
-   char* line;
-   char** args;
+   char *line;
+   char **args;
    int status;
 
-   do {
-      printf("> ");
-      line = msh_read_line();
-      args = msh_split_line(line);
-      status = msh_execute(args);
+   char *token;    // new
 
-      free(line);
-      free(args);
+   do {
+      printf("$ ");
+      line = msh_read_line();
+
+
+      // NEW STUFF ADDED
+      while ((token = strtok_r(line, "&", &line)))
+      {
+         //printf("%s\n", token);    // used to print the current token
+         args = msh_split_line(token);
+         status = msh_execute(args);
+         free(args);
+      }
+      // END NEW STUFF
+
+        
+      //args = msh_split_line(line);      
+      //status = msh_execute(args);
+
+      //free(line);
+      //free(args);
    } while (status);
 }
 
