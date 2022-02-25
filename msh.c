@@ -115,6 +115,28 @@ int msh_exit(char** args)
   @param args Null terminated list of arguments (including program).
   @return Always returns 1, to continue execution.
  */
+
+int msh_pipe(char **args) {
+	int pid;
+	switch (pid = fork()) {
+		case 0: //child
+			dup2(args[0], 0);
+			close(args[0]);
+			execvp(args[0], args);
+			perror(args[0]);
+		case -1:
+			perror("msh: fork\n");
+			exit(1);
+		default:
+			dup2(args[1], 1);
+			close(args[0]);
+			execvp(args[0], args);
+			perror(args[0]);
+	}
+}
+
+
+
 int msh_launch(char** args)
 {
    pid_t pid;
@@ -273,6 +295,8 @@ void msh_loop(void)
    char *line;
    char **args;
    int status;
+	 int i = 0;
+	 int flag = 0;
 
    char *token;    // new
 
@@ -280,6 +304,20 @@ void msh_loop(void)
       printf("$ ");
       line = msh_read_line();
 
+		 // PIPE CHECK
+		 	while(line[i] != '\0') {
+				if(line[i] == '|') {	
+					flag = 1;
+					break;
+				}
+				i++;
+			}
+		 if(flag == 1) { // pipe character encountered
+			 	args = msh_split_line(token);
+				msh_pipe(args);
+			 	free(args);
+		 }
+		 // END PIPE CHECK
 
       // NEW STUFF ADDED
       while ((token = strtok_r(line, "&", &line)) && status)
