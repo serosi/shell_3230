@@ -282,7 +282,7 @@ void msh_loop(void)
 
 
       // NEW STUFF ADDED
-      while ((token = strtok_r(line, "&", &line)))
+      while ((token = strtok_r(line, "&", &line)) && status)
       {
          //printf("%s\n", token);    // used to print the current token
          args = msh_split_line(token);
