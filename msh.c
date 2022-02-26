@@ -123,7 +123,7 @@ int msh_pipe(char **args) {
 			dup2(args[0], 0);
 			close(args[0]);
 			execvp(args[0], args);
-			perror(args[0]);
+			//perror(args[0]);
 		case -1:
 			perror("msh: fork\n");
 			exit(1);
@@ -131,7 +131,7 @@ int msh_pipe(char **args) {
 			dup2(args[1], 1);
 			close(args[0]);
 			execvp(args[0], args);
-			perror(args[0]);
+			//perror(args[0]);
 	}
 }
 
@@ -304,20 +304,12 @@ void msh_loop(void)
       printf("$ ");
       line = msh_read_line();
 
-		 // PIPE CHECK
-		 	while(line[i] != '\0') {
-				if(line[i] == '|') {	
-					flag = 1;
-					break;
-				}
-				i++;
-			}
-		 if(flag == 1) { // pipe character encountered
-			 	args = msh_split_line(token);
-				msh_pipe(args);
-			 	free(args);
-		 }
-		 // END PIPE CHECK
+		  while ((token = strtok_r(line, "|", &line)))
+      {
+         args = msh_split_line(token);
+         msh_pipe(args);
+         free(args);
+      }
 
       // NEW STUFF ADDED
       while ((token = strtok_r(line, "&", &line)) && status)
