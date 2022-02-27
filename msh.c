@@ -45,6 +45,7 @@ int msh_num_builtins() {
   Builtin function implementations.
 */
 
+#define MSH_DIRECT_MAX 260
 /**
    @brief Built-in command: prints the current working directory
    @param args list of args. args[0] is "pwd"
@@ -52,7 +53,7 @@ int msh_num_builtins() {
 */
 int msh_pwd(char** args)
 {
-   char cwd[260];
+   char cwd[MSH_DIRECT_MAX];
    if (getcwd(cwd, sizeof(cwd)) != NULL) {
       printf("Current working dir: %s\n", cwd);
    }
