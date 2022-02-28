@@ -116,24 +116,111 @@ int msh_exit(char** args)
   @param args Null terminated list of arguments (including program).
   @return Always returns 1, to continue execution.
  */
+int msh_pipe(char** args) {
+   int fd[2];
+   pid_t pid1;
+   pid_t pid2;
+   int pipeLoc = -1;                // where the pipe is located
+   char inputArgs[1024] = {'\n'};   // first set of args
+   char inputArgsV[1024] = {'\n'};  // additional args
+   char outputArgs[1024] = {'\n'};  // second set of args
+   char outputArgsV[1024] = {'\n'}; // additional args
 
-int msh_pipe(char **args) {
-	int pid;
-	switch (pid = fork()) {
-		case 0: //child
-			dup2(args[0], 0);
-			close(args[0]);
-			execvp(args[0], args);
-			//perror(args[0]);
-		case -1:
-			perror("msh: fork\n");
-			exit(1);
-		default:
-			dup2(args[1], 1);
-			close(args[0]);
-			execvp(args[0], args);
-			//perror(args[0]);
-	}
+
+   strcpy(inputArgs, args[0]);   // set initial value of input args
+   for (int i = 1; args[i] != NULL && strcmp(args[i], "|") != 0; i++)
+   {
+      if (strcmp(inputArgsV, "\n") == 0)
+      {
+         strcpy(inputArgsV, args[i]);  // need to use strcpy for empty input
+      }
+      else
+      {
+         strcat(inputArgsV, " ");
+         strcat(inputArgsV, args[i]);
+      }
+   }
+
+
+   // find the location of the pipe
+   for (int i = 1; args[i] != NULL; i++)
+   {
+      if (strcmp(args[i], "|") == 0)
+      {
+         pipeLoc = i;
+      }
+   }
+   pipeLoc++;  // set starting value for outputArgs
+
+
+   strcpy(outputArgs, args[pipeLoc]);  // set initial value of output args
+   for (int i = pipeLoc + 1; args[i] != NULL; i++)
+   {
+      if (strcmp(outputArgsV, "\n") == 0)
+      {
+         strcpy(outputArgsV, args[i]); // need to use strcpy for empty input
+      }
+      else
+      {
+         strcat(outputArgsV, " ");
+         strcat(outputArgsV, args[i]);
+      }
+   }
+
+   
+   // executing pipe command
+   if (pipe(fd))
+   {
+      perror("Pipe error\n");
+      return 0;
+   }
+   pid1 = fork();
+
+   if (pid1 == 0)
+   {
+      close(fd[1]);
+      dup2(fd[0], STDIN_FILENO);
+      close(fd[0]);
+      if (strcmp(outputArgsV, "\n") == 0)
+      {
+         execlp(outputArgs, outputArgs, NULL);  // execute without additional args
+      }
+      else
+      {
+         execlp(outputArgs, outputArgs, outputArgsV, NULL);
+      }
+      //execlp("/bin/sh", "/bin/sh", "-c", convertedArgs, NULL);  // cheatsy method
+      //execlp("wc", "wc", "-l", NULL);
+      //execlp("grep", "grep", "main", NULL);   // executes grep main
+   }
+   else
+   {
+      pid2 = fork();
+
+      if (pid2 == 0)
+      {
+         close(fd[0]);
+         dup2(fd[1], STDOUT_FILENO);
+         close(fd[1]);
+         if (strcmp(inputArgsV, "\n") == 0)
+         {
+            execlp(inputArgs, inputArgs, NULL); // execute without additional args
+         }
+         else
+         {
+            execlp(inputArgs, inputArgs, inputArgsV, NULL);
+         }
+         //execlp("/bin/sh", "/bin/sh", "-c", convertedArgs, NULL);  // cheatsy method
+         //execlp("ls", "ls", NULL);   executes ls
+      }
+
+      close(fd[1]);
+      close(fd[0]);
+      waitpid(-1, NULL, 0);
+      waitpid(-1, NULL, 0);
+   }
+
+   return 1;
 }
 
 
@@ -296,28 +383,39 @@ void msh_loop(void)
    char *line;
    char **args;
    int status;
-	 int i = 0;
-	 int flag = 0;
+	int flag = 0;
 
    char *token;    // new
+   char *tempLine;
 
    do {
       printf("$ ");
-      line = msh_read_line();
-
-		  while ((token = strtok_r(line, "|", &line)))
-      {
-         args = msh_split_line(token);
-         msh_pipe(args);
-         free(args);
-      }
+      line = tempLine = msh_read_line();
 
       // NEW STUFF ADDED
       while ((token = strtok_r(line, "&", &line)) && status)
       {
+         // checks if a pipe is in the input
+         flag = 0;
+         
+         
+         // checks tempLine because line is null here already
+         if (strchr(tempLine, '|'))
+         {
+            token = tempLine;
+            flag = 1;
+         }
+
          //printf("%s\n", token);    // used to print the current token
          args = msh_split_line(token);
-         status = msh_execute(args);
+         if (flag == 1)
+         {
+            status = msh_pipe(args);
+         }
+         else
+         {
+            status = msh_execute(args);
+         }
          free(args);
       }
       // END NEW STUFF
